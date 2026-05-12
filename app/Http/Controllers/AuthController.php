@@ -19,12 +19,15 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        $user->sendEmailVerificationNotification();
+
         $token = JWTAuth::fromUser($user);
 
         return response()->json([
-            'message' => 'Usuário criado com sucesso.',
-            'token'   => $token,
-            'user'    => [
+            'message'            => 'Usuário criado com sucesso. Verifique seu e-mail para ativar a conta.',
+            'token'              => $token,
+            'email_verified'     => false,
+            'user'               => [
                 'id'    => $user->id,
                 'name'  => $user->name,
                 'email' => $user->email,
@@ -50,9 +53,10 @@ class AuthController extends Controller
         $user = auth('api')->user();
 
         return response()->json([
-            'id'    => $user->id,
-            'name'  => $user->name,
-            'email' => $user->email,
+            'id'             => $user->id,
+            'name'           => $user->name,
+            'email'          => $user->email,
+            'email_verified' => $user->hasVerifiedEmail(),
         ]);
     }
 
