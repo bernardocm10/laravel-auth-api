@@ -29,6 +29,10 @@ class ResetPasswordRequest extends FormRequest
             'email.email'        => 'Informe um e-mail válido.',
             'password.required'  => 'A nova senha é obrigatória.',
             'password.confirmed' => 'A confirmação de senha não corresponde.',
+            'password.min'       => 'A senha deve ter no mínimo 8 caracteres.',
+            'password.letters'   => 'A senha deve conter ao menos uma letra.',
+            'password.mixed'     => 'A senha deve conter letras maiúsculas e minúsculas.',
+            'password.numbers'   => 'A senha deve conter ao menos um número.',
         ];
     }
 }
