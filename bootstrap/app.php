@@ -4,7 +4,9 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Illuminate\Validation\ValidationException;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
@@ -57,6 +59,22 @@ return Application::configure(basePath: dirname(__DIR__))
                     'message' => 'Dados inválidos.',
                     'errors'  => $e->errors(),
                 ], 422);
+            }
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(
+                    ['message' => 'Muitas tentativas. Tente novamente em breve.'],
+                    429,
+                    ['Retry-After' => $e->getHeaders()['Retry-After'] ?? 60]
+                );
+            }
+        });
+
+        $exceptions->render(function (InvalidSignatureException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => 'Link inválido ou expirado.'], 403);
             }
         });
     })->create();
