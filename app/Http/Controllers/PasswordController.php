@@ -25,12 +25,10 @@ class PasswordController extends Controller
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {
-                // Incrementa token_version para revogar todos os JWTs anteriores
-                // emitidos para este usuário em qualquer dispositivo/sessão.
-                $user->forceFill([
-                    'password'      => $password,
-                    'token_version' => $user->token_version + 1,
-                ])->save();
+                // Incrementa token_version atomicamente para revogar todos os JWTs
+                // anteriores emitidos para este usuário em qualquer dispositivo/sessão.
+                $user->forceFill(['password' => $password])->save();
+                $user->increment('token_version');
             }
         );
 
@@ -45,11 +43,10 @@ class PasswordController extends Controller
     {
         $user = auth('api')->user();
 
-        // Incrementa token_version para invalidar todas as outras sessões ativas
-        $user->forceFill([
-            'password'      => $request->password,
-            'token_version' => $user->token_version + 1,
-        ])->save();
+        // Atualiza a senha e incrementa token_version atomicamente para invalidar
+        // todas as outras sessões ativas.
+        $user->forceFill(['password' => $request->password])->save();
+        $user->increment('token_version');
 
         // Invalida o token JWT da sessão atual
         auth('api')->logout();
