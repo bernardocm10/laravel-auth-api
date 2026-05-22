@@ -29,21 +29,15 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (TokenExpiredException $e, Request $request) {
-            if ($request->is('api/*')) {
-                return response()->json(['message' => 'Token expirado.'], 401);
-            }
-        });
-
-        $exceptions->render(function (TokenInvalidException $e, Request $request) {
-            if ($request->is('api/*')) {
-                return response()->json(['message' => 'Token inválido.'], 401);
-            }
-        });
-
         $exceptions->render(function (JWTException $e, Request $request) {
             if ($request->is('api/*')) {
-                return response()->json(['message' => 'Token ausente ou malformado.'], 401);
+                $message = match (true) {
+                    $e instanceof TokenExpiredException => 'Token expirado.',
+                    $e instanceof TokenInvalidException => 'Token inválido.',
+                    default                             => 'Token ausente ou malformado.',
+                };
+
+                return response()->json(['message' => $message], 401);
             }
         });
 
