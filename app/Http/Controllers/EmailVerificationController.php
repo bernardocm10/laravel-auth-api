@@ -9,16 +9,12 @@ use Illuminate\Http\Request;
 
 class EmailVerificationController extends Controller
 {
-    public function verify(Request $request, int $id, string $hash): JsonResponse
+    public function verify(int $id, string $hash): JsonResponse
     {
         $user = User::findOrFail($id);
 
         if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
             return response()->json(['message' => 'Link de verificação inválido.'], 403);
-        }
-
-        if (! $request->hasValidSignature()) {
-            return response()->json(['message' => 'Link de verificação expirado ou inválido.'], 403);
         }
 
         if ($user->hasVerifiedEmail()) {
