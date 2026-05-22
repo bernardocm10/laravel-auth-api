@@ -6,7 +6,6 @@ use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 
 class PasswordController extends Controller
@@ -26,7 +25,7 @@ class PasswordController extends Controller
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {
-                $user->forceFill(['password' => Hash::make($password)])->save();
+                $user->forceFill(['password' => $password])->save();
             }
         );
 
@@ -41,7 +40,7 @@ class PasswordController extends Controller
     {
         $user = auth('api')->user();
 
-        $user->forceFill(['password' => Hash::make($request->password)])->save();
+        $user->forceFill(['password' => $request->password])->save();
 
         // Invalida todos os tokens JWT existentes do usuário
         auth('api')->logout();

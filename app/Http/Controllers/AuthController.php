@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
@@ -16,7 +16,7 @@ class AuthController extends Controller
         $user = User::create([
             'name'     => $request->name,
             'email'    => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => $request->password,
         ]);
 
         $user->sendEmailVerificationNotification();
@@ -24,14 +24,9 @@ class AuthController extends Controller
         $token = JWTAuth::fromUser($user);
 
         return response()->json([
-            'message'            => 'Usuário criado com sucesso. Verifique seu e-mail para ativar a conta.',
-            'token'              => $token,
-            'email_verified'     => false,
-            'user'               => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
-            ],
+            'message' => 'Usuário criado com sucesso. Verifique seu e-mail para ativar a conta.',
+            'token'   => $token,
+            'user'    => new UserResource($user),
         ], 201);
     }
 
@@ -50,14 +45,7 @@ class AuthController extends Controller
 
     public function me(): JsonResponse
     {
-        $user = auth('api')->user();
-
-        return response()->json([
-            'id'             => $user->id,
-            'name'           => $user->name,
-            'email'          => $user->email,
-            'email_verified' => $user->hasVerifiedEmail(),
-        ]);
+        return response()->json(new UserResource(auth('api')->user()));
     }
 
     public function logout(): JsonResponse
