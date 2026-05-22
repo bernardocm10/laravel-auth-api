@@ -19,6 +19,9 @@ class SecurityHeaders
         $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
         $response->headers->set('Content-Security-Policy', "default-src 'none'");
+        // Impede que proxies e browsers cacheiem respostas da API (tokens, dados do usuário)
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        $response->headers->set('Pragma', 'no-cache');
 
         $response->headers->remove('X-Powered-By');
         $response->headers->remove('Server');
