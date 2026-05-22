@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 
 class ProfileController extends Controller
@@ -32,12 +33,7 @@ class ProfileController extends Controller
             'message' => $emailChanged
                 ? 'Perfil atualizado. Verifique seu novo e-mail para reativar a conta.'
                 : 'Perfil atualizado com sucesso.',
-            'user' => [
-                'id'             => $user->id,
-                'name'           => $user->name,
-                'email'          => $user->email,
-                'email_verified' => $user->hasVerifiedEmail(),
-            ],
+            'user' => new UserResource($user),
         ]);
     }
 }
