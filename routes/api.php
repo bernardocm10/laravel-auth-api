@@ -21,15 +21,26 @@ Route::prefix('auth')->group(function () {
         ->name('verification.verify')
         ->middleware('signed');
 
-    Route::middleware('auth:api')->group(function () {
-        Route::middleware('throttle:60,1')->group(function () {
-            Route::post('logout', [AuthController::class, 'logout']);
-            Route::get('me', [AuthController::class, 'me']);
-            Route::put('profile', [ProfileController::class, 'update']);
-        });
+    // Grupo autenticado — ValidateTokenVersion garante que JWTs emitidos antes
+    // de uma troca de senha sejam rejeitados, mesmo ainda dentro do TTL.
+    Route::middleware(['auth:api', 'token.version'])->group(function () {
 
-        Route::put('password', [PasswordController::class, 'update'])->middleware('throttle:10,1');
-        Route::post('refresh', [AuthController::class, 'refresh'])->middleware('throttle:10,1');
+        // Rotas de sessão — não exigem e-mail verificado (usuário precisa
+        // conseguir sair e reenviar verificação mesmo sem ter verificado).
+        Route::middleware('throttle:10,1')->group(function () {
+            Route::post('refresh', [AuthController::class, 'refresh']);
+        });
+        Route::post('logout', [AuthController::class, 'logout'])->middleware('throttle:60,1');
         Route::post('email/resend', [EmailVerificationController::class, 'resend'])->middleware('throttle:6,1');
+
+        // Rotas protegidas — exigem e-mail verificado para evitar acesso com
+        // contas não confirmadas (endereço falso ou de terceiros).
+        Route::middleware('email.verified')->group(function () {
+            Route::middleware('throttle:60,1')->group(function () {
+                Route::get('me', [AuthController::class, 'me']);
+                Route::put('profile', [ProfileController::class, 'update']);
+            });
+            Route::put('password', [PasswordController::class, 'update'])->middleware('throttle:10,1');
+        });
     });
 });

@@ -20,7 +20,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // CORS: deve rodar antes de qualquer outro middleware para responder
+        // corretamente às preflight requests (OPTIONS) do browser.
+        $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
+
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
+        // Aliases usados nas rotas
+        $middleware->alias([
+            'token.version'  => \App\Http\Middleware\ValidateTokenVersion::class,
+            'email.verified' => \App\Http\Middleware\EnsureEmailVerified::class,
+        ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {
             if ($request->is('api/*')) {
