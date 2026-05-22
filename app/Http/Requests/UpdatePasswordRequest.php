@@ -16,7 +16,7 @@ class UpdatePasswordRequest extends FormRequest
     {
         return [
             'current_password' => ['required', 'string', 'current_password:api'],
-            'password'         => ['required', 'confirmed', 'different:current_password', Password::min(8)->letters()->numbers()->mixedCase()],
+            'password'         => ['required', 'confirmed', 'different:current_password', Password::defaults()],
         ];
     }
 
@@ -28,10 +28,10 @@ class UpdatePasswordRequest extends FormRequest
             'password.required'                  => 'A nova senha é obrigatória.',
             'password.confirmed'                 => 'A confirmação de senha não corresponde.',
             'password.different'                 => 'A nova senha deve ser diferente da senha atual.',
-            'password.min'                       => 'A senha deve ter no mínimo 8 caracteres.',
-            'password.letters'                   => 'A senha deve conter ao menos uma letra.',
-            'password.mixed'                     => 'A senha deve conter letras maiúsculas e minúsculas.',
-            'password.numbers'                   => 'A senha deve conter ao menos um número.',
+            'password.min'     => 'A senha deve ter no mínimo 8 caracteres.',
+            'password.letters' => 'A senha deve conter ao menos uma letra.',
+            'password.mixed'   => 'A senha deve conter letras maiúsculas e minúsculas.',
+            'password.numbers' => 'A senha deve conter ao menos um número.',
         ];
     }
 }

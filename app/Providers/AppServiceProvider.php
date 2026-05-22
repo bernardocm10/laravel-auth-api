@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -14,6 +15,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Password::defaults(fn () => Password::min(8)->letters()->numbers()->mixedCase());
+
         // A URL enviada no e-mail aponta para o frontend, que por sua vez
         // chama POST /api/auth/reset-password com o token recebido.
         ResetPassword::createUrlUsing(function (object $user, string $token): string {

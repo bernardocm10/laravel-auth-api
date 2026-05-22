@@ -17,7 +17,7 @@ class ResetPasswordRequest extends FormRequest
         return [
             'token'    => ['required', 'string'],
             'email'    => ['required', 'string', 'email'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()->mixedCase()],
+            'password' => ['required', 'confirmed', Password::defaults()],
         ];
     }
 
@@ -29,10 +29,10 @@ class ResetPasswordRequest extends FormRequest
             'email.email'        => 'Informe um e-mail válido.',
             'password.required'  => 'A nova senha é obrigatória.',
             'password.confirmed' => 'A confirmação de senha não corresponde.',
-            'password.min'       => 'A senha deve ter no mínimo 8 caracteres.',
-            'password.letters'   => 'A senha deve conter ao menos uma letra.',
-            'password.mixed'     => 'A senha deve conter letras maiúsculas e minúsculas.',
-            'password.numbers'   => 'A senha deve conter ao menos um número.',
+            'password.min'     => 'A senha deve ter no mínimo 8 caracteres.',
+            'password.letters' => 'A senha deve conter ao menos uma letra.',
+            'password.mixed'   => 'A senha deve conter letras maiúsculas e minúsculas.',
+            'password.numbers' => 'A senha deve conter ao menos um número.',
         ];
     }
 }

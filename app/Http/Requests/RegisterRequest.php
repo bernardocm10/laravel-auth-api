@@ -17,7 +17,7 @@ class RegisterRequest extends FormRequest
         return [
             'name'     => ['required', 'string', 'max:100'],
             'email'    => ['required', 'string', 'email', 'max:150', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()->mixedCase()],
+            'password' => ['required', 'confirmed', Password::defaults()],
         ];
     }
 
@@ -29,11 +29,10 @@ class RegisterRequest extends FormRequest
             'email.unique'                   => 'Este e-mail já está em uso.',
             'password.required'              => 'A senha é obrigatória.',
             'password.confirmed'             => 'A confirmação de senha não corresponde.',
-            'password.min'                   => 'A senha deve ter no mínimo 8 caracteres.',
-            'password.letters'               => 'A senha deve conter ao menos uma letra.',
-            'password.mixed'                 => 'A senha deve conter letras maiúsculas e minúsculas.',
-            'password.numbers'               => 'A senha deve conter ao menos um número.',
-            'password.symbols'               => 'A senha deve conter ao menos um símbolo.',
+            'password.min'     => 'A senha deve ter no mínimo 8 caracteres.',
+            'password.letters' => 'A senha deve conter ao menos uma letra.',
+            'password.mixed'   => 'A senha deve conter letras maiúsculas e minúsculas.',
+            'password.numbers' => 'A senha deve conter ao menos um número.'
         ];
     }
 }
