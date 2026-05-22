@@ -1,451 +1,596 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="h-full">
+<html lang="pt-BR">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Auth API — Tester</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] }
-                }
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .response-box { min-height: 3rem; max-height: 20rem; overflow-y: auto; }
-        input:focus, textarea:focus { outline: none; }
-        .tab-btn.active { background: #1e40af; color: #fff; }
-        .tab-btn { transition: all .15s; }
-        .section { display: none; }
-        .section.active { display: block; }
-        .toast { animation: slideIn .3s ease; }
-        @keyframes slideIn { from { transform: translateY(1rem); opacity: 0 } to { transform: none; opacity: 1 } }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auth API — Tester</title>
+<style>
+/* ── Reset & base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #030712;
+  --surface:  #111827;
+  --surface2: #1f2937;
+  --border:   #374151;
+  --text:     #f3f4f6;
+  --muted:    #9ca3af;
+  --dim:      #6b7280;
+  --blue:     #3b82f6;
+  --blue-dk:  #1d4ed8;
+  --mono: 'Courier New', Courier, monospace;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Header ───────────────────────────────────────────────────────── */
+.hdr {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  height: 57px;
+}
+.hdr-brand  { display: flex; align-items: center; gap: 8px; }
+.hdr-title  { color: var(--blue); font-weight: 700; font-size: 1.05rem; }
+.hdr-sub    { color: var(--dim); font-size: .875rem; }
+.hdr-right  { display: flex; align-items: center; gap: 16px; font-size: .8125rem; }
+
+.auth-status { display: flex; align-items: center; gap: 7px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+.dot.green  { background: #22c55e; }
+.dot.yellow { background: #eab308; }
+.auth-lbl   { color: var(--muted); }
+
+.chip {
+  display: none; align-items: center;
+  background: #1e1b4b; border: 1px solid #3730a3;
+  border-radius: 999px; padding: 3px 12px;
+}
+.chip.on { display: flex; }
+.chip-email { color: #a5b4fc; font-family: var(--mono); font-size: .72rem; }
+
+.ttl { display: none; font-family: var(--mono); font-size: .72rem; color: var(--dim); }
+.ttl.on { display: block; }
+
+.btn-clear {
+  font-size: .72rem; color: #f87171; border: 1px solid #7f1d1d;
+  background: none; border-radius: 6px; padding: 3px 8px; cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.btn-clear:hover { color: #fca5a5; border-color: #991b1b; }
+
+/* ── Sidebar ──────────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed; top: 57px; left: 0; bottom: 0; width: 196px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 12px 10px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.grp {
+  font-size: .67rem; color: var(--dim); text-transform: uppercase;
+  letter-spacing: .08em; padding: 4px 8px; margin-top: 10px;
+}
+.grp:first-child { margin-top: 0; }
+.tab-btn {
+  text-align: left; padding: 7px 10px; border-radius: 7px;
+  font-size: .875rem; color: var(--muted);
+  background: none; border: none; cursor: pointer; width: 100%;
+  transition: background .1s, color .1s;
+}
+.tab-btn:hover  { background: var(--surface2); color: var(--text); }
+.tab-btn.active { background: #1e3a8a; color: #bfdbfe; }
+
+/* ── Main layout ──────────────────────────────────────────────────── */
+.main {
+  margin-left: 196px;
+  padding: 81px 24px 32px 220px;
+  display: flex; gap: 24px; align-items: flex-start;
+}
+
+/* ── Sections ─────────────────────────────────────────────────────── */
+.section { display: none; flex: 1; min-width: 0; }
+.section.active { display: block; }
+.sec-title { font-size: .9375rem; font-weight: 600; color: #e5e7eb; margin-bottom: 18px; }
+.sec-desc  { font-size: .8125rem; color: var(--muted); margin-bottom: 14px; }
+
+/* ── Form controls ────────────────────────────────────────────────── */
+.field  { margin-bottom: 11px; }
+.label  { display: block; font-size: .72rem; color: var(--muted); margin-bottom: 5px; }
+.inp {
+  width: 100%; background: #0f172a; border: 1px solid var(--border);
+  border-radius: 7px; padding: 7px 11px; font-size: .875rem; color: var(--text);
+  outline: none; transition: border-color .15s;
+}
+.inp:focus { border-color: var(--blue); }
+
+.btn-primary {
+  background: var(--blue-dk); color: #fff; border: none;
+  border-radius: 7px; padding: 8px 20px; font-size: .875rem; font-weight: 500;
+  cursor: pointer; transition: background .15s;
+}
+.btn-primary:hover { background: #1e40af; }
+.btn-secondary {
+  background: var(--surface2); color: #d1d5db; border: 1px solid var(--border);
+  border-radius: 7px; padding: 8px 20px; font-size: .875rem; font-weight: 500;
+  cursor: pointer; transition: background .15s;
+}
+.btn-secondary:hover { background: var(--border); }
+.btn-danger {
+  background: #7f1d1d; color: #fca5a5; border: none;
+  border-radius: 7px; padding: 8px 20px; font-size: .875rem; font-weight: 500;
+  cursor: pointer; transition: background .15s;
+}
+.btn-danger:hover { background: #991b1b; }
+.btn-row { display: flex; gap: 10px; }
+.btn-row > * { flex: 1; }
+
+/* ── Token preview box ────────────────────────────────────────────── */
+.token-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px; margin-bottom: 12px;
+}
+.token-box-lbl { font-size: .8rem; color: var(--muted); margin-bottom: 6px; }
+.token-txt {
+  font-family: var(--mono); font-size: .675rem; color: var(--dim); word-break: break-all;
+}
+
+/* ── Right panel ──────────────────────────────────────────────────── */
+.rpanel {
+  width: 372px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 14px;
+  position: sticky; top: 72px;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px;
+}
+.card-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.plbl {
+  font-size: .67rem; color: var(--dim); text-transform: uppercase; letter-spacing: .08em;
+}
+.req-method { font-family: var(--mono); font-size: .72rem; font-weight: 600; color: var(--dim); }
+.req-url    { font-family: var(--mono); font-size: .72rem; color: #60a5fa; word-break: break-all; }
+
+.badge {
+  font-family: var(--mono); font-size: .72rem; padding: 2px 8px; border-radius: 5px;
+  font-weight: 600; background: var(--surface2); color: var(--dim); border: 1px solid var(--border);
+}
+.badge.ok   { background: #052e16; color: #86efac; border-color: #166534; }
+.badge.warn { background: #422006; color: #fde047; border-color: #713f12; }
+.badge.err  { background: #3b0a0a; color: #fca5a5; border-color: #7f1d1d; }
+
+.copy-btn {
+  font-size: .72rem; color: var(--dim); background: none; border: none;
+  cursor: pointer; transition: color .12s;
+}
+.copy-btn:hover { color: var(--text); }
+
+.res-box {
+  font-family: var(--mono); font-size: .675rem; color: #d1d5db;
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 280px; overflow-y: auto;
+  background: #0f172a; border-radius: 7px; padding: 10px; margin-top: 6px;
+}
+.jwt-ver {
+  display: none; font-family: var(--mono); font-size: .72rem;
+  padding: 2px 8px; border-radius: 5px;
+  background: #1e1b4b; color: #a5b4fc; border: 1px solid #3730a3;
+}
+.jwt-payload {
+  font-family: var(--mono); font-size: .675rem; color: var(--dim);
+  white-space: pre-wrap; word-break: break-all;
+  background: #0f172a; border-radius: 7px; padding: 10px; margin-top: 6px;
+}
+
+/* ── Toasts ───────────────────────────────────────────────────────── */
+.toast-wrap {
+  position: fixed; bottom: 22px; right: 22px;
+  display: flex; flex-direction: column; gap: 7px; z-index: 50; pointer-events: none;
+}
+.toast {
+  pointer-events: auto; padding: 8px 16px; border-radius: 8px;
+  font-size: .875rem; border: 1px solid;
+  animation: slideIn .22s ease; box-shadow: 0 4px 20px rgba(0,0,0,.45);
+}
+.toast.success { background: #052e16; border-color: #166534; color: #86efac; }
+.toast.info    { background: #0c1a3a; border-color: #1e3a8a; color: #93c5fd; }
+.toast.error   { background: #3b0a0a; border-color: #7f1d1d; color: #fca5a5; }
+@keyframes slideIn {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+code { font-family: var(--mono); font-size: .72rem; color: #93c5fd; }
+</style>
 </head>
-<body class="h-full bg-gray-950 text-gray-100">
+<body>
 
-<!-- BARRA SUPERIOR: status do token -->
-<header class="fixed top-0 left-0 right-0 z-30 bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between gap-4">
-    <div class="flex items-center gap-3">
-        <span class="text-blue-400 font-bold text-lg tracking-tight">Auth API</span>
-        <span class="text-gray-600 text-sm">tester</span>
+<!-- ── HEADER ──────────────────────────────────────────────────────── -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <span class="hdr-title">Auth API</span>
+    <span class="hdr-sub">tester</span>
+  </div>
+  <div class="hdr-right">
+    <div class="auth-status">
+      <span id="auth-dot" class="dot"></span>
+      <span id="auth-lbl" class="auth-lbl">Não autenticado</span>
     </div>
-
-    <div class="flex items-center gap-4 text-sm">
-        <!-- indicador de auth -->
-        <div class="flex items-center gap-2">
-            <span id="auth-dot" class="w-2 h-2 rounded-full bg-red-500"></span>
-            <span id="auth-label" class="text-gray-400">Não autenticado</span>
-        </div>
-        <!-- usuário logado -->
-        <div id="user-chip" class="hidden items-center gap-2 bg-blue-950 border border-blue-800 rounded-full px-3 py-1">
-            <span class="text-blue-300 text-xs mono" id="user-email-chip">—</span>
-        </div>
-        <!-- TTL do token -->
-        <div id="token-ttl" class="hidden mono text-xs text-gray-500"></div>
-        <!-- botão limpar -->
-        <button onclick="clearToken()" class="text-xs text-red-500 hover:text-red-400 border border-red-900 hover:border-red-700 px-2 py-1 rounded transition">
-            Limpar token
-        </button>
+    <div id="user-chip" class="chip">
+      <span id="user-email" class="chip-email">—</span>
     </div>
+    <span id="token-ttl" class="ttl"></span>
+    <button onclick="clearToken()" class="btn-clear">Limpar token</button>
+  </div>
 </header>
 
-<div class="flex h-full pt-14">
+<!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
+<nav class="sidebar">
+  <span class="grp">Autenticação</span>
+  <button class="tab-btn active" data-tab="register">Registrar</button>
+  <button class="tab-btn"        data-tab="login">Login</button>
+  <button class="tab-btn"        data-tab="logout">Logout / Refresh</button>
 
-    <!-- SIDEBAR: navegação -->
-    <nav class="fixed top-14 left-0 bottom-0 w-52 bg-gray-900 border-r border-gray-800 flex flex-col py-4 gap-1 px-3 overflow-y-auto">
-        <p class="text-xs text-gray-600 uppercase tracking-widest px-2 mb-1">Autenticação</p>
-        <button class="tab-btn active text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="register">Registrar</button>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="login">Login</button>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="logout">Logout / Refresh</button>
+  <span class="grp">Conta</span>
+  <button class="tab-btn" data-tab="me">Meu perfil</button>
+  <button class="tab-btn" data-tab="profile">Editar perfil</button>
+  <button class="tab-btn" data-tab="password">Alterar senha</button>
 
-        <p class="text-xs text-gray-600 uppercase tracking-widest px-2 mt-4 mb-1">Conta</p>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="me">Meu perfil</button>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="profile">Editar perfil</button>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="password">Alterar senha</button>
+  <span class="grp">E-mail</span>
+  <button class="tab-btn" data-tab="resend">Reenviar verificação</button>
+  <button class="tab-btn" data-tab="forgot">Esqueci a senha</button>
+  <button class="tab-btn" data-tab="reset">Redefinir senha</button>
+</nav>
 
-        <p class="text-xs text-gray-600 uppercase tracking-widest px-2 mt-4 mb-1">E-mail</p>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="resend">Reenviar verificação</button>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="forgot">Esqueci a senha</button>
-        <button class="tab-btn text-left px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-800" data-tab="reset">Redefinir senha</button>
-    </nav>
+<!-- ── MAIN ────────────────────────────────────────────────────────── -->
+<div class="main">
 
-    <!-- CONTEÚDO PRINCIPAL -->
-    <main class="ml-52 flex-1 flex flex-col lg:flex-row gap-6 p-6 min-h-0">
+  <!-- Formulários -->
+  <div style="flex:1;min-width:0">
 
-        <!-- PAINEL ESQUERDO: formulários -->
-        <div class="flex-1 min-w-0">
+    <!-- REGISTRAR -->
+    <div class="section active" id="sec-register">
+      <p class="sec-title">POST /api/auth/register</p>
+      <div class="field"><label class="label">Nome</label><input id="reg-name"  class="inp" type="text"     placeholder="João Silva"></div>
+      <div class="field"><label class="label">E-mail</label><input id="reg-email" class="inp" type="email"    placeholder="joao@email.com"></div>
+      <div class="field"><label class="label">Senha</label><input id="reg-pass"  class="inp" type="password" placeholder="Senha@1234"></div>
+      <div class="field"><label class="label">Confirmar senha</label><input id="reg-pass2" class="inp" type="password" placeholder="Senha@1234"></div>
+      <button onclick="doRegister()" class="btn-primary">Registrar</button>
+    </div>
 
-            <!-- REGISTRAR -->
-            <div class="section active" id="sec-register">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">POST /api/auth/register</h2>
-                <div class="space-y-3">
-                    <div><label class="label">Nome</label><input id="reg-name" type="text" placeholder="João Silva" class="inp"></div>
-                    <div><label class="label">E-mail</label><input id="reg-email" type="email" placeholder="joao@email.com" class="inp"></div>
-                    <div><label class="label">Senha</label><input id="reg-pass" type="password" placeholder="Senha@1234" class="inp"></div>
-                    <div><label class="label">Confirmar senha</label><input id="reg-pass2" type="password" placeholder="Senha@1234" class="inp"></div>
-                    <button onclick="doRegister()" class="btn-primary">Registrar</button>
-                </div>
-            </div>
+    <!-- LOGIN -->
+    <div class="section" id="sec-login">
+      <p class="sec-title">POST /api/auth/login</p>
+      <div class="field"><label class="label">E-mail</label><input id="log-email" class="inp" type="email"    placeholder="joao@email.com"></div>
+      <div class="field"><label class="label">Senha</label><input id="log-pass"  class="inp" type="password" placeholder="Senha@1234"></div>
+      <button onclick="doLogin()" class="btn-primary">Entrar</button>
+    </div>
 
-            <!-- LOGIN -->
-            <div class="section" id="sec-login">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">POST /api/auth/login</h2>
-                <div class="space-y-3">
-                    <div><label class="label">E-mail</label><input id="log-email" type="email" placeholder="joao@email.com" class="inp"></div>
-                    <div><label class="label">Senha</label><input id="log-pass" type="password" placeholder="Senha@1234" class="inp"></div>
-                    <button onclick="doLogin()" class="btn-primary">Entrar</button>
-                </div>
-            </div>
+    <!-- SESSÃO -->
+    <div class="section" id="sec-logout">
+      <p class="sec-title">Sessão</p>
+      <div class="token-box">
+        <p class="token-box-lbl">Token atual:</p>
+        <p id="token-preview" class="token-txt">Nenhum token armazenado.</p>
+      </div>
+      <div class="btn-row">
+        <button onclick="doLogout()"  class="btn-danger">POST /logout</button>
+        <button onclick="doRefresh()" class="btn-secondary">POST /refresh</button>
+      </div>
+    </div>
 
-            <!-- LOGOUT / REFRESH -->
-            <div class="section" id="sec-logout">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">Sessão</h2>
-                <div class="space-y-3">
-                    <div class="p-4 bg-gray-800 rounded-lg">
-                        <p class="text-sm text-gray-400 mb-3">Token atual:</p>
-                        <p id="token-preview" class="mono text-xs text-gray-500 break-all">Nenhum token armazenado.</p>
-                    </div>
-                    <div class="flex gap-3">
-                        <button onclick="doLogout()" class="btn-danger flex-1">POST /logout</button>
-                        <button onclick="doRefresh()" class="btn-secondary flex-1">POST /refresh</button>
-                    </div>
-                </div>
-            </div>
+    <!-- ME -->
+    <div class="section" id="sec-me">
+      <p class="sec-title">GET /api/auth/me</p>
+      <p class="sec-desc">Retorna os dados do usuário autenticado. Requer e-mail verificado.</p>
+      <button onclick="doMe()" class="btn-primary">Buscar meu perfil</button>
+    </div>
 
-            <!-- ME -->
-            <div class="section" id="sec-me">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">GET /api/auth/me</h2>
-                <p class="text-sm text-gray-500 mb-4">Retorna os dados do usuário autenticado. Requer e-mail verificado.</p>
-                <button onclick="doMe()" class="btn-primary">Buscar meu perfil</button>
-            </div>
+    <!-- EDITAR PERFIL -->
+    <div class="section" id="sec-profile">
+      <p class="sec-title">PUT /api/auth/profile</p>
+      <div class="field"><label class="label">Nome</label><input id="pro-name"  class="inp" type="text"  placeholder="João Silva"></div>
+      <div class="field"><label class="label">E-mail</label><input id="pro-email" class="inp" type="email" placeholder="joao@email.com"></div>
+      <button onclick="doProfile()" class="btn-primary">Salvar alterações</button>
+    </div>
 
-            <!-- EDITAR PERFIL -->
-            <div class="section" id="sec-profile">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">PUT /api/auth/profile</h2>
-                <div class="space-y-3">
-                    <div><label class="label">Nome</label><input id="pro-name" type="text" placeholder="João Silva" class="inp"></div>
-                    <div><label class="label">E-mail</label><input id="pro-email" type="email" placeholder="joao@email.com" class="inp"></div>
-                    <button onclick="doProfile()" class="btn-primary">Salvar alterações</button>
-                </div>
-            </div>
+    <!-- ALTERAR SENHA -->
+    <div class="section" id="sec-password">
+      <p class="sec-title">PUT /api/auth/password</p>
+      <div class="field"><label class="label">Senha atual</label><input id="pw-current" class="inp" type="password" placeholder="SenhaAtual@1"></div>
+      <div class="field"><label class="label">Nova senha</label><input id="pw-new"     class="inp" type="password" placeholder="NovaSenha@2"></div>
+      <div class="field"><label class="label">Confirmar nova senha</label><input id="pw-new2" class="inp" type="password" placeholder="NovaSenha@2"></div>
+      <button onclick="doChangePass()" class="btn-primary">Alterar senha</button>
+    </div>
 
-            <!-- ALTERAR SENHA -->
-            <div class="section" id="sec-password">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">PUT /api/auth/password</h2>
-                <div class="space-y-3">
-                    <div><label class="label">Senha atual</label><input id="pw-current" type="password" placeholder="SenhaAtual@1" class="inp"></div>
-                    <div><label class="label">Nova senha</label><input id="pw-new" type="password" placeholder="NovaSenha@2" class="inp"></div>
-                    <div><label class="label">Confirmar nova senha</label><input id="pw-new2" type="password" placeholder="NovaSenha@2" class="inp"></div>
-                    <button onclick="doChangePass()" class="btn-primary">Alterar senha</button>
-                </div>
-            </div>
+    <!-- REENVIAR VERIFICAÇÃO -->
+    <div class="section" id="sec-resend">
+      <p class="sec-title">POST /api/auth/email/resend</p>
+      <p class="sec-desc">Reenvia o e-mail de verificação. O link aparece em <code>storage/logs/laravel.log</code>.</p>
+      <button onclick="doResend()" class="btn-primary">Reenviar verificação</button>
+    </div>
 
-            <!-- REENVIAR VERIFICAÇÃO -->
-            <div class="section" id="sec-resend">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">POST /api/auth/email/resend</h2>
-                <p class="text-sm text-gray-500 mb-4">Reenvia o e-mail de verificação para o usuário autenticado. O e-mail será registrado no <code class="mono text-blue-400">storage/logs/laravel.log</code>.</p>
-                <button onclick="doResend()" class="btn-primary">Reenviar verificação</button>
-            </div>
+    <!-- ESQUECI SENHA -->
+    <div class="section" id="sec-forgot">
+      <p class="sec-title">POST /api/auth/forgot-password</p>
+      <p class="sec-desc">Envia o link de redefinição. O token aparece em <code>storage/logs/laravel.log</code>.</p>
+      <div class="field"><label class="label">E-mail</label><input id="fg-email" class="inp" type="email" placeholder="joao@email.com"></div>
+      <button onclick="doForgot()" class="btn-primary">Enviar link de reset</button>
+    </div>
 
-            <!-- ESQUECI SENHA -->
-            <div class="section" id="sec-forgot">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">POST /api/auth/forgot-password</h2>
-                <p class="text-sm text-gray-500 mb-4">Envia o link de redefinição para o e-mail. O token ficará registrado no <code class="mono text-blue-400">storage/logs/laravel.log</code>.</p>
-                <div class="space-y-3">
-                    <div><label class="label">E-mail</label><input id="fg-email" type="email" placeholder="joao@email.com" class="inp"></div>
-                    <button onclick="doForgot()" class="btn-primary">Enviar link de reset</button>
-                </div>
-            </div>
+    <!-- REDEFINIR SENHA -->
+    <div class="section" id="sec-reset">
+      <p class="sec-title">POST /api/auth/reset-password</p>
+      <p class="sec-desc">Cole o token do log. Revoga todos os JWTs ativos (<code>token_version</code> é incrementado).</p>
+      <div class="field"><label class="label">E-mail</label><input id="rs-email" class="inp" type="email" placeholder="joao@email.com"></div>
+      <div class="field"><label class="label">Token (do log)</label><input id="rs-token" class="inp" type="text" placeholder="05c506..." style="font-family:monospace;font-size:.72rem"></div>
+      <div class="field"><label class="label">Nova senha</label><input id="rs-pass"  class="inp" type="password" placeholder="NovaSenha@3"></div>
+      <div class="field"><label class="label">Confirmar</label><input id="rs-pass2" class="inp" type="password" placeholder="NovaSenha@3"></div>
+      <button onclick="doReset()" class="btn-primary">Redefinir senha</button>
+    </div>
 
-            <!-- REDEFINIR SENHA -->
-            <div class="section" id="sec-reset">
-                <h2 class="text-base font-semibold mb-4 text-gray-200">POST /api/auth/reset-password</h2>
-                <p class="text-sm text-gray-500 mb-3">Cole o token recebido no log. O token invalida todos os JWTs ativos (<code class="mono text-blue-400">token_version</code> é incrementado).</p>
-                <div class="space-y-3">
-                    <div><label class="label">E-mail</label><input id="rs-email" type="email" placeholder="joao@email.com" class="inp"></div>
-                    <div><label class="label">Token (do log)</label><input id="rs-token" type="text" placeholder="05c506..." class="inp mono text-xs"></div>
-                    <div><label class="label">Nova senha</label><input id="rs-pass" type="password" placeholder="NovaSenha@3" class="inp"></div>
-                    <div><label class="label">Confirmar</label><input id="rs-pass2" type="password" placeholder="NovaSenha@3" class="inp"></div>
-                    <button onclick="doReset()" class="btn-primary">Redefinir senha</button>
-                </div>
-            </div>
+  </div>
 
+  <!-- Painel direito -->
+  <div class="rpanel">
+
+    <!-- Última requisição -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="plbl">Última requisição</span>
+        <span id="req-method" class="req-method">—</span>
+      </div>
+      <p id="req-url" class="req-url">—</p>
+    </div>
+
+    <!-- Resposta -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="plbl">Resposta</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="res-badge" class="badge">—</span>
+          <button onclick="copyResponse()" class="copy-btn">copiar</button>
         </div>
+      </div>
+      <pre id="res-body" class="res-box">Faça uma requisição para ver a resposta aqui.</pre>
+    </div>
 
-        <!-- PAINEL DIREITO: resposta da API -->
-        <div class="w-full lg:w-96 flex flex-col gap-4 shrink-0">
-            <!-- request info -->
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs text-gray-500 uppercase tracking-widest">Última requisição</span>
-                    <span id="req-method" class="text-xs mono font-semibold text-gray-600">—</span>
-                </div>
-                <p id="req-url" class="mono text-xs text-blue-400 truncate">—</p>
-            </div>
+    <!-- JWT Payload -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="plbl">JWT Payload</span>
+        <span id="jwt-ver" class="jwt-ver">v<span id="jwt-ver-val"></span></span>
+      </div>
+      <pre id="jwt-payload" class="jwt-payload">Faça login para ver o payload.</pre>
+    </div>
 
-            <!-- status badge + resposta JSON -->
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex-1">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs text-gray-500 uppercase tracking-widest">Resposta</span>
-                    <div class="flex items-center gap-2">
-                        <span id="res-status-badge" class="text-xs mono px-2 py-0.5 rounded font-semibold bg-gray-800 text-gray-500">—</span>
-                        <button onclick="copyResponse()" class="text-xs text-gray-600 hover:text-gray-300 transition">copiar</button>
-                    </div>
-                </div>
-                <pre id="res-body" class="response-box mono text-xs text-gray-300 whitespace-pre-wrap break-all">Faça uma requisição para ver a resposta aqui.</pre>
-            </div>
-
-            <!-- token decodificado -->
-            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs text-gray-500 uppercase tracking-widest">JWT Payload</span>
-                    <span id="token-ver-badge" class="hidden mono text-xs px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-900">v<span id="token-ver-val"></span></span>
-                </div>
-                <pre id="jwt-payload" class="mono text-xs text-gray-500 whitespace-pre-wrap">Faça login para ver o payload.</pre>
-            </div>
-        </div>
-
-    </main>
+  </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none"></div>
-
-<!-- ESTILOS INLINE (classes Tailwind usadas como utilitários) -->
-<style>
-    .label  { display:block; font-size:.75rem; color:#9ca3af; margin-bottom:.375rem; }
-    .inp    { width:100%; background:#111827; border:1px solid #374151; border-radius:.5rem; padding:.5rem .75rem; font-size:.875rem; color:#f3f4f6; transition: border-color .15s; }
-    .inp:focus { border-color:#3b82f6; }
-    .btn-primary  { background:#1d4ed8; color:#fff; border-radius:.5rem; padding:.5rem 1.25rem; font-size:.875rem; font-weight:500; cursor:pointer; transition: background .15s; }
-    .btn-primary:hover { background:#1e40af; }
-    .btn-secondary { background:#1f2937; color:#d1d5db; border:1px solid #374151; border-radius:.5rem; padding:.5rem 1.25rem; font-size:.875rem; font-weight:500; cursor:pointer; transition: background .15s; }
-    .btn-secondary:hover { background:#374151; }
-    .btn-danger { background:#7f1d1d; color:#fca5a5; border-radius:.5rem; padding:.5rem 1.25rem; font-size:.875rem; font-weight:500; cursor:pointer; transition: background .15s; }
-    .btn-danger:hover { background:#991b1b; }
-</style>
+<div id="toasts" class="toast-wrap"></div>
 
 <script>
 const BASE = '/api/auth';
-
-// ─── Estado local ─────────────────────────────────────────────────────────────
 let _token = localStorage.getItem('api_token') || null;
 
+/* ── Token state ─────────────────────────────────────────────────── */
 function saveToken(t) {
-    _token = t;
-    if (t) localStorage.setItem('api_token', t);
-    else localStorage.removeItem('api_token');
-    updateHeader();
+  _token = t;
+  t ? localStorage.setItem('api_token', t) : localStorage.removeItem('api_token');
+  updateHeader();
 }
+function clearToken() { saveToken(null); toast('Token removido.', 'info'); }
 
-function clearToken() { saveToken(null); showToast('Token removido.', 'info'); }
-
-// ─── Atualiza barra superior e painel JWT ─────────────────────────────────────
+/* ── Header update ───────────────────────────────────────────────── */
 function updateHeader() {
-    const dot   = document.getElementById('auth-dot');
-    const label = document.getElementById('auth-label');
-    const chip  = document.getElementById('user-chip');
-    const ttl   = document.getElementById('token-ttl');
-    const prev  = document.getElementById('token-preview');
-    const jwtEl = document.getElementById('jwt-payload');
-    const verBadge = document.getElementById('token-ver-badge');
-    const verVal   = document.getElementById('token-ver-val');
+  const dot     = document.getElementById('auth-dot');
+  const lbl     = document.getElementById('auth-lbl');
+  const chip    = document.getElementById('user-chip');
+  const ttl     = document.getElementById('token-ttl');
+  const prev    = document.getElementById('token-preview');
+  const payload = document.getElementById('jwt-payload');
+  const ver     = document.getElementById('jwt-ver');
+  const verVal  = document.getElementById('jwt-ver-val');
 
-    if (!_token) {
-        dot.className   = 'w-2 h-2 rounded-full bg-red-500';
-        label.textContent = 'Não autenticado';
-        chip.classList.add('hidden'); chip.classList.remove('flex');
-        ttl.classList.add('hidden');
-        if (prev) prev.textContent = 'Nenhum token armazenado.';
-        jwtEl.textContent = 'Faça login para ver o payload.';
-        verBadge.classList.add('hidden');
-        return;
+  if (!_token) {
+    dot.className = 'dot';
+    lbl.textContent = 'Não autenticado';
+    chip.classList.remove('on');
+    ttl.classList.remove('on');
+    if (prev) prev.textContent = 'Nenhum token armazenado.';
+    payload.textContent = 'Faça login para ver o payload.';
+    ver.style.display = 'none';
+    return;
+  }
+
+  try {
+    const parts = _token.split('.');
+    const p = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const now = Date.now() / 1000;
+    const expired = p.exp && now > p.exp;
+
+    dot.className = 'dot ' + (expired ? 'yellow' : 'green');
+    lbl.textContent = expired ? 'Token expirado' : 'Autenticado';
+
+    if (p.token_version !== undefined) {
+      ver.style.display = 'inline-block';
+      verVal.textContent = p.token_version;
     }
 
-    // Decodifica payload do JWT (sem verificar assinatura — só visualização)
-    try {
-        const parts   = _token.split('.');
-        const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-        const exp     = payload.exp ? new Date(payload.exp * 1000) : null;
-        const now     = Date.now() / 1000;
-        const expired = payload.exp && now > payload.exp;
-
-        dot.className  = expired ? 'w-2 h-2 rounded-full bg-yellow-500' : 'w-2 h-2 rounded-full bg-green-500';
-        label.textContent = expired ? 'Token expirado' : 'Autenticado';
-
-        if (payload.token_version !== undefined) {
-            verBadge.classList.remove('hidden');
-            verVal.textContent = payload.token_version;
-        }
-
-        if (exp) {
-            const diff = Math.max(0, payload.exp - now);
-            const mins = Math.floor(diff / 60), secs = Math.floor(diff % 60);
-            ttl.textContent = expired ? 'expirado' : `expira em ${mins}m ${secs}s`;
-            ttl.classList.remove('hidden');
-        }
-
-        jwtEl.textContent = JSON.stringify(payload, null, 2);
-        if (prev) prev.textContent = _token;
-    } catch(e) {
-        jwtEl.textContent = 'Token inválido.';
+    if (p.exp) {
+      const diff = Math.max(0, p.exp - now);
+      ttl.textContent = expired
+        ? 'expirado'
+        : 'expira em ' + Math.floor(diff / 60) + 'm ' + Math.floor(diff % 60) + 's';
+      ttl.classList.add('on');
     }
+
+    payload.textContent = JSON.stringify(p, null, 2);
+    if (prev) prev.textContent = _token;
+  } catch (e) {
+    payload.textContent = 'Token inválido.';
+  }
 }
 
-// ─── Requisições ─────────────────────────────────────────────────────────────
-async function api(method, path, body = null, useToken = false) {
-    const url = BASE + path;
-    document.getElementById('req-method').textContent = method;
-    document.getElementById('req-url').textContent    = url;
+/* ── API helper ──────────────────────────────────────────────────── */
+async function api(method, path, body, withToken) {
+  const url = BASE + path;
+  document.getElementById('req-method').textContent = method;
+  document.getElementById('req-url').textContent    = url;
 
-    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    if (useToken && _token) headers['Authorization'] = `Bearer ${_token}`;
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  if (withToken && _token) headers['Authorization'] = 'Bearer ' + _token;
 
-    const opts = { method, headers };
-    if (body) opts.body = JSON.stringify(body);
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
 
-    try {
-        const res  = await fetch(url, opts);
-        const data = await res.json().catch(() => ({}));
-        renderResponse(res.status, data);
-        return { status: res.status, data };
-    } catch(err) {
-        renderResponse(0, { error: err.message });
-        return { status: 0, data: {} };
-    }
+  try {
+    const res  = await fetch(url, opts);
+    const data = await res.json().catch(function() { return {}; });
+    renderRes(res.status, data);
+    return { status: res.status, data: data };
+  } catch (err) {
+    renderRes(0, { error: err.message });
+    return { status: 0, data: {} };
+  }
 }
 
-function renderResponse(status, data) {
-    const badge = document.getElementById('res-status-badge');
-    const body  = document.getElementById('res-body');
-
-    badge.textContent = status || 'ERR';
-    badge.className   = 'text-xs mono px-2 py-0.5 rounded font-semibold ';
-    if      (status >= 200 && status < 300) badge.className += 'bg-green-950 text-green-400 border border-green-900';
-    else if (status >= 400 && status < 500) badge.className += 'bg-yellow-950 text-yellow-400 border border-yellow-900';
-    else if (status >= 500)                 badge.className += 'bg-red-950 text-red-400 border border-red-900';
-    else                                    badge.className += 'bg-gray-800 text-gray-500';
-
-    body.textContent = JSON.stringify(data, null, 2);
+function renderRes(status, data) {
+  const badge = document.getElementById('res-badge');
+  badge.textContent = status || 'ERR';
+  badge.className   = 'badge';
+  if      (status >= 200 && status < 300) badge.classList.add('ok');
+  else if (status >= 400 && status < 500) badge.classList.add('warn');
+  else if (status >= 500)                 badge.classList.add('err');
+  document.getElementById('res-body').textContent = JSON.stringify(data, null, 2);
 }
 
 function copyResponse() {
-    navigator.clipboard.writeText(document.getElementById('res-body').textContent)
-        .then(() => showToast('Copiado!', 'success'));
+  navigator.clipboard.writeText(document.getElementById('res-body').textContent)
+    .then(function() { toast('Copiado!', 'success'); });
 }
 
-// ─── Handlers ────────────────────────────────────────────────────────────────
+/* ── Handlers ────────────────────────────────────────────────────── */
 async function doRegister() {
-    const r = await api('POST', '/register', {
-        name: v('reg-name'), email: v('reg-email'),
-        password: v('reg-pass'), password_confirmation: v('reg-pass2'),
-    });
-    if (r.status === 201) {
-        saveToken(r.data.token);
-        showToast('Registrado! Verifique o e-mail no log.', 'success');
-        setChip(r.data.user?.email);
-    }
+  var r = await api('POST', '/register', {
+    name: v('reg-name'), email: v('reg-email'),
+    password: v('reg-pass'), password_confirmation: v('reg-pass2'),
+  });
+  if (r.status === 201) {
+    saveToken(r.data.token);
+    setChip(r.data.user && r.data.user.email);
+    toast('Registrado! Verifique o e-mail no log.', 'success');
+  }
 }
 
 async function doLogin() {
-    const r = await api('POST', '/login', { email: v('log-email'), password: v('log-pass') });
-    if (r.status === 200) {
-        saveToken(r.data.access_token);
-        showToast('Login realizado com sucesso.', 'success');
-        // Busca e-mail do /me
-        const me = await api('GET', '/me', null, true);
-        if (me.status === 200) setChip(me.data?.email);
-    }
+  var r = await api('POST', '/login', { email: v('log-email'), password: v('log-pass') });
+  if (r.status === 200) {
+    saveToken(r.data.access_token);
+    toast('Login realizado.', 'success');
+    var me = await api('GET', '/me', null, true);
+    if (me.status === 200) setChip(me.data && me.data.email);
+  }
 }
 
 async function doLogout() {
-    const r = await api('POST', '/logout', null, true);
-    if (r.status === 200) { saveToken(null); showToast('Logout realizado.', 'info'); }
+  var r = await api('POST', '/logout', null, true);
+  if (r.status === 200) { saveToken(null); toast('Logout realizado.', 'info'); }
 }
 
 async function doRefresh() {
-    const r = await api('POST', '/refresh', null, true);
-    if (r.status === 200) { saveToken(r.data.access_token); showToast('Token atualizado.', 'success'); }
+  var r = await api('POST', '/refresh', null, true);
+  if (r.status === 200) { saveToken(r.data.access_token); toast('Token renovado.', 'success'); }
 }
 
 async function doMe() {
-    const r = await api('GET', '/me', null, true);
-    if (r.status === 200) setChip(r.data?.email);
+  var r = await api('GET', '/me', null, true);
+  if (r.status === 200) setChip(r.data && r.data.email);
 }
 
 async function doProfile() {
-    const r = await api('PUT', '/profile', { name: v('pro-name'), email: v('pro-email') }, true);
-    if (r.status === 200) { setChip(r.data?.user?.email); showToast('Perfil atualizado.', 'success'); }
+  var r = await api('PUT', '/profile', { name: v('pro-name'), email: v('pro-email') }, true);
+  if (r.status === 200) {
+    setChip(r.data.user && r.data.user.email);
+    toast('Perfil atualizado.', 'success');
+  }
 }
 
 async function doChangePass() {
-    const r = await api('PUT', '/password', {
-        current_password: v('pw-current'),
-        password: v('pw-new'), password_confirmation: v('pw-new2'),
-    }, true);
-    if (r.status === 200) { saveToken(null); showToast('Senha alterada. Faça login novamente.', 'info'); }
+  var r = await api('PUT', '/password', {
+    current_password: v('pw-current'),
+    password: v('pw-new'), password_confirmation: v('pw-new2'),
+  }, true);
+  if (r.status === 200) { saveToken(null); toast('Senha alterada. Faça login novamente.', 'info'); }
 }
 
 async function doResend() {
-    await api('POST', '/email/resend', null, true);
-    showToast('Link reenviado. Verifique storage/logs/laravel.log', 'info');
+  await api('POST', '/email/resend', null, true);
+  toast('Reenviado. Veja storage/logs/laravel.log', 'info');
 }
 
 async function doForgot() {
-    await api('POST', '/forgot-password', { email: v('fg-email') });
-    showToast('Se cadastrado, o link está em storage/logs/laravel.log', 'info');
+  await api('POST', '/forgot-password', { email: v('fg-email') });
+  toast('Se cadastrado, o link está em storage/logs/laravel.log', 'info');
 }
 
 async function doReset() {
-    const r = await api('POST', '/reset-password', {
-        email: v('rs-email'), token: v('rs-token'),
-        password: v('rs-pass'), password_confirmation: v('rs-pass2'),
-    });
-    if (r.status === 200) showToast('Senha redefinida. Tokens antigos foram revogados.', 'success');
+  var r = await api('POST', '/reset-password', {
+    email: v('rs-email'), token: v('rs-token'),
+    password: v('rs-pass'), password_confirmation: v('rs-pass2'),
+  });
+  if (r.status === 200) toast('Senha redefinida. Tokens antigos foram revogados.', 'success');
 }
 
-// ─── Utilitários ─────────────────────────────────────────────────────────────
-const v = id => document.getElementById(id)?.value?.trim() ?? '';
-
-function setChip(email) {
-    const chip = document.getElementById('user-chip');
-    if (!email) return;
-    document.getElementById('user-email-chip').textContent = email;
-    chip.classList.remove('hidden'); chip.classList.add('flex');
-}
-
-function showToast(msg, type = 'info') {
-    const colors = { success: 'bg-green-950 border-green-800 text-green-300', info: 'bg-blue-950 border-blue-800 text-blue-300', error: 'bg-red-950 border-red-800 text-red-300' };
-    const el = document.createElement('div');
-    el.className = `toast pointer-events-auto ${colors[type]} border rounded-lg px-4 py-2 text-sm shadow-xl`;
-    el.textContent = msg;
-    document.getElementById('toast-container').appendChild(el);
-    setTimeout(() => el.remove(), 3500);
-}
-
-// ─── Tabs ────────────────────────────────────────────────────────────────────
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById('sec-' + btn.dataset.tab)?.classList.add('active');
-
-        // Preenche token preview ao abrir sessão
-        if (btn.dataset.tab === 'logout') {
-            const prev = document.getElementById('token-preview');
-            if (prev) prev.textContent = _token ?? 'Nenhum token armazenado.';
-        }
-    });
+/* ── Tabs ────────────────────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+    btn.classList.add('active');
+    var sec = document.getElementById('sec-' + btn.dataset.tab);
+    if (sec) sec.classList.add('active');
+    if (btn.dataset.tab === 'logout') {
+      var prev = document.getElementById('token-preview');
+      if (prev) prev.textContent = _token || 'Nenhum token armazenado.';
+    }
+  });
 });
 
-// ─── Atualiza TTL a cada segundo ─────────────────────────────────────────────
+/* ── Helpers ─────────────────────────────────────────────────────── */
+function v(id) {
+  var el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+function setChip(email) {
+  if (!email) return;
+  document.getElementById('user-email').textContent = email;
+  document.getElementById('user-chip').classList.add('on');
+}
+
+function toast(msg, type) {
+  var el = document.createElement('div');
+  el.className = 'toast ' + (type || 'info');
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(function() { el.remove(); }, 3500);
+}
+
 setInterval(updateHeader, 1000);
 updateHeader();
 </script>
