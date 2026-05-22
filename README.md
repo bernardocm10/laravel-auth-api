@@ -1,30 +1,44 @@
 # Laravel Auth API
 
-API REST de autenticação com JWT construída em **Laravel 11** e **PHP 8.3**.
+API REST de autenticação com JWT construída em **Laravel 11** e **PHP 8.3**, com foco em segurança.
 
 ## Stack
 
-- PHP 8.3
-- Laravel 11
-- MySQL
+- PHP 8.3 / Laravel 11
+- SQLite (dev) — qualquer banco suportado pelo Eloquent em produção
 - JWT via `tymon/jwt-auth`
+- CORS via `fruitcake/php-cors`
 
 ## Funcionalidades
 
-- Registro de usuário com validação
-- Login com e-mail e senha
-- Logout com invalidação do token
+### Autenticação
+- Registro com validação e envio de e-mail de verificação
+- Login com e-mail e senha, retorna JWT
+- Logout com invalidação do token (blacklist)
 - Refresh de token JWT
-- Rota protegida (`/api/auth/me`)
-- Rate limiting nas rotas públicas (10 req/min)
+
+### Segurança
+- **Token versioning** — cada token carrega `token_version`; ao trocar a senha o campo é incrementado no banco, revogando todos os JWTs anteriores automaticamente, mesmo dentro do TTL
+- **Verificação de e-mail obrigatória** para rotas sensíveis (`/me`, `/profile`, `/password`)
+- **UUID público** — o campo `id` exposto nas respostas é um UUID, nunca o ID numérico do banco (mitiga IDOR)
+- **Rate limiting** por rota (registro/login: 10 req/min; forgot/reset: 5 req/min; rotas autenticadas: 60 req/min)
+- **CORS restrito** — origens configuradas via variável de ambiente
+- **Security headers** em todas as respostas (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `HSTS`)
+- **CSP `default-src 'none'`** nas rotas `/api/*` (respostas JSON não devem carregar recursos externos)
+- **Cache-Control `no-store`** nas respostas da API (impede cache de tokens e dados do usuário)
 - Senhas com `bcrypt` via `Hash::make()`
-- Proteção contra mass assignment com `$fillable`
+
+### Conta
+- Atualização de nome e e-mail (`/profile`)
+- Troca de senha com validação da senha atual (`/password`) — revoga todos os tokens ativos
+- Reenvio de e-mail de verificação (`/email/resend`)
+- Fluxo completo de esqueci/redefinir senha com token assinado
 
 ## Instalação
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/seu-usuario/laravel-auth-api.git
+git clone https://github.com/bernardocm10/laravel-auth-api.git
 cd laravel-auth-api
 
 # 2. Instalar dependências
@@ -32,7 +46,7 @@ composer install
 
 # 3. Copiar e configurar variáveis de ambiente
 cp .env.example .env
-# Editar .env com suas credenciais de banco
+# Editar .env — ver seção "Variáveis de ambiente"
 
 # 4. Gerar chave da aplicação
 php artisan key:generate
@@ -47,15 +61,30 @@ php artisan migrate
 php artisan serve
 ```
 
+> Em desenvolvimento, e-mails (verificação e reset de senha) são gravados em `storage/logs/laravel.log` — configure `MAIL_MAILER=log` no `.env`.
+
 ## Endpoints
 
-| Método | Rota               | Auth | Descrição               |
-|--------|--------------------|------|-------------------------|
-| POST   | /api/auth/register | Não  | Registrar usuário       |
-| POST   | /api/auth/login    | Não  | Login                   |
-| GET    | /api/auth/me       | Sim  | Dados do usuário logado |
-| POST   | /api/auth/refresh  | Sim  | Renovar token           |
-| POST   | /api/auth/logout   | Sim  | Logout                  |
+### Públicos
+
+| Método | Rota                        | Throttle   | Descrição                          |
+|--------|-----------------------------|------------|------------------------------------|
+| POST   | /api/auth/register          | 10 req/min | Registrar usuário                  |
+| POST   | /api/auth/login             | 10 req/min | Login — retorna JWT                |
+| POST   | /api/auth/forgot-password   | 5 req/min  | Solicitar link de reset de senha   |
+| POST   | /api/auth/reset-password    | 5 req/min  | Redefinir senha com token do e-mail|
+| GET    | /api/auth/email/verify/{id}/{hash} | —   | Verificar e-mail (link do e-mail)  |
+
+### Autenticados (requerem `Authorization: Bearer <token>`)
+
+| Método | Rota                     | E-mail verificado | Throttle   | Descrição                          |
+|--------|--------------------------|-------------------|------------|------------------------------------|
+| POST   | /api/auth/logout         | Não               | 60 req/min | Logout — invalida o token          |
+| POST   | /api/auth/refresh        | Não               | 10 req/min | Renovar token JWT                  |
+| POST   | /api/auth/email/resend   | Não               | 6 req/min  | Reenviar e-mail de verificação     |
+| GET    | /api/auth/me             | **Sim**           | 60 req/min | Dados do usuário autenticado       |
+| PUT    | /api/auth/profile        | **Sim**           | 60 req/min | Atualizar nome e e-mail            |
+| PUT    | /api/auth/password       | **Sim**           | 10 req/min | Trocar senha — revoga todos os JWTs|
 
 ## Exemplos com curl
 
@@ -66,8 +95,8 @@ curl -X POST http://localhost:8000/api/auth/register \
   -d '{
     "name": "João Silva",
     "email": "joao@example.com",
-    "password": "senha123",
-    "password_confirmation": "senha123"
+    "password": "Senha@1234",
+    "password_confirmation": "Senha@1234"
   }'
 ```
 
@@ -75,78 +104,78 @@ curl -X POST http://localhost:8000/api/auth/register \
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "joao@example.com", "password": "senha123"}'
+  -d '{"email": "joao@example.com", "password": "Senha@1234"}'
 ```
 
-### Dados do usuário (requer token)
+### Dados do usuário
 ```bash
-curl -X GET http://localhost:8000/api/auth/me \
-  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+curl http://localhost:8000/api/auth/me \
+  -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 ### Refresh
 ```bash
 curl -X POST http://localhost:8000/api/auth/refresh \
-  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+  -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 ### Logout
 ```bash
 curl -X POST http://localhost:8000/api/auth/logout \
-  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+  -H "Authorization: Bearer SEU_TOKEN"
 ```
+
+### Esqueci a senha
+```bash
+curl -X POST http://localhost:8000/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "joao@example.com"}'
+# Token aparece em storage/logs/laravel.log
+```
+
+### Redefinir senha
+```bash
+curl -X POST http://localhost:8000/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "joao@example.com",
+    "token": "TOKEN_DO_LOG",
+    "password": "NovaSenha@2",
+    "password_confirmation": "NovaSenha@2"
+  }'
+```
+
+## Interface visual (dev)
+
+Com `APP_ENV=local`, acesse **http://localhost:8000/tester** para testar todos os endpoints via interface gráfica — sem precisar de curl ou Postman. A rota não existe em outros ambientes.
 
 ## Variáveis de ambiente relevantes
 
 ```env
-JWT_SECRET=       # gerado via php artisan jwt:secret
-JWT_TTL=60        # expiração do token em minutos
-JWT_REFRESH_TTL=20160  # expiração do refresh em minutos (14 dias)
-JWT_ALGO=HS256    # algoritmo de assinatura
+# Aplicação
+APP_ENV=local
+APP_KEY=             # gerado via php artisan key:generate
+
+# Banco de dados
+DB_CONNECTION=sqlite
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_DATABASE=laravel
+
+# JWT
+JWT_SECRET=          # gerado via php artisan jwt:secret
+JWT_TTL=60           # expiração do token em minutos (padrão: 60)
+JWT_REFRESH_TTL=20160  # janela de refresh em minutos (padrão: 14 dias)
+JWT_ALGO=HS256
+
+# CORS — origens permitidas separadas por vírgula
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+
+# E-mail (dev: escreve no log)
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="Auth API"
 ```
-
-
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
 
 ## Contributing
 
